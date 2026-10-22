@@ -10,9 +10,12 @@ from app.schemas import SecurityEventCreate, SecurityEventResponse
 
 
 from sqlalchemy import func
+from app.services.detection import detect_repeated_failed_logins
+from app.services.risk import calculate_risk_score
 
 
 router = APIRouter(prefix="/events", tags=["Security Events"])
+
 
 
 
@@ -28,39 +31,38 @@ def create_event(
     try:
         event_status = event_data.status.strip().lower()
         event_type = event_data.event_type.strip().lower()
+        source_ip = (
+            event_data.source_ip.strip()
+            if event_data.source_ip
+            else None
+        )
 
         is_suspicious = False
 
         if (
             event_type == "login"
             and event_status == "failure"
-            and event_data.source_ip
+            and source_ip
         ):
-            from datetime import datetime, timedelta, timezone
-            from sqlalchemy import func
-
-            cutoff_time = datetime.now(timezone.utc) - timedelta(minutes=10)
-
-            failed_attempts = (
-                db.query(func.count(SecurityEvent.id))
-                .filter(
-                    SecurityEvent.event_type.ilike("login"),
-                    SecurityEvent.status.ilike("failure"),
-                    SecurityEvent.source_ip == event_data.source_ip.strip(),
-                    SecurityEvent.timestamp >= cutoff_time,
-                )
-                .scalar()
+            is_suspicious = detect_repeated_failed_logins(
+                db=db,
+                source_ip=source_ip,
             )
 
-            is_suspicious = failed_attempts + 1 >= 5
+        risk_score = calculate_risk_score(
+        event_type=event_type,
+        event_status=event_status,
+        is_suspicious=is_suspicious,
+        )
 
         event = SecurityEvent(
             username=event_data.username,
-            source_ip=event_data.source_ip.strip() if event_data.source_ip else None,
+            source_ip=source_ip,
             event_type=event_type,
             status=event_status,
             timestamp=event_data.timestamp,
             is_suspicious=is_suspicious,
+            risk_score=risk_score,
         )
 
         db.add(event)

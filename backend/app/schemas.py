@@ -12,6 +12,7 @@ class SecurityEventCreate(BaseModel):
     event_type: str = Field(min_length=1, max_length=50)
     status: str = Field(min_length=1, max_length=20)
     timestamp: datetime | None = None
+    
 
 
 class SecurityEventResponse(BaseModel):
@@ -22,5 +23,6 @@ class SecurityEventResponse(BaseModel):
     event_type: str
     status: str
     is_suspicious: bool
+    risk_score: int
 
     model_config = ConfigDict(from_attributes=True)

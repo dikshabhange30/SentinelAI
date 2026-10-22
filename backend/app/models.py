@@ -21,3 +21,4 @@ class SecurityEvent(Base):
     event_type = mapped_column(String(50), nullable=False)
     status = mapped_column(String(20), nullable=False)
     is_suspicious = mapped_column(Boolean, default=False, nullable=False)
+    risk_score = mapped_column(Integer, default=0, nullable=False)
